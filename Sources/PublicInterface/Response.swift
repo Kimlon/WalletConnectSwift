@@ -102,6 +102,9 @@ public enum ResponseError: Int, Error {
     case errorResponse = -32010
     case requestRejected = -32050
 
+    case sessionRejected = -32000
+    case others
+    
     public var message: String {
         switch self {
         case .invalidJSON: return "Parse error"
@@ -111,6 +114,8 @@ public enum ResponseError: Int, Error {
         case .internalError: return "Internal error"
         case .errorResponse: return "Error response"
         case .requestRejected: return "Request rejected"
+        case .sessionRejected: return "session rejected"
+        default: return ""
         }
     }
 }

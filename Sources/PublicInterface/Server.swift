@@ -11,7 +11,7 @@ public protocol RequestHandler: AnyObject {
 
 public protocol ServerDelegate: AnyObject {
     /// Websocket connection was dropped during handshake. The connectoin process should be initiated again.
-    func server(_ server: Server, didFailToConnect url: WCURL)
+    func server(_ server: Server, didFailToConnect url: WCURL, withError error: Error?)
 
     /// The handshake will be established based on "approved" property of WalletInfo.
     func server(_ server: Server, shouldStart session: Session, completion: @escaping (Session.WalletInfo) -> Void)
@@ -103,16 +103,15 @@ open class Server: WalletConnect {
             log(request)
             handle(request)
         } catch {
-            LogService.shared.error(
-                "WC: incomming text deserialization to JSONRPC 2.0 requests error: \(error.localizedDescription)"
-            )
+            LogService.shared.log(
+                "WC: incomming text deserialization to JSONRPC 2.0 requests error: \(error.localizedDescription)")
             // TODO: handle error
             try! send(Response(url: url, error: .invalidJSON))
         }
     }
 
     override func onConnect(to url: WCURL) {
-        LogService.shared.info("WC: didConnect url: \(url.bridgeURL.absoluteString)")
+        LogService.shared.log("WC: didConnect url: \(url.bridgeURL.absoluteString)")
         if let session = communicator.session(by: url) { // reconnecting existing session
             communicator.subscribe(on: session.walletInfo!.peerId, url: session.url)
             delegate?.server(self, didConnect: session)
@@ -138,8 +137,8 @@ open class Server: WalletConnect {
         try updateSession(session, with: walletInfo.with(approved: false))
     }
 
-    override func failedToConnect(_ url: WCURL) {
-        delegate?.server(self, didFailToConnect: url)
+    override func failedToConnect(_ url: WCURL, error: Error?) {
+        delegate?.server(self, didFailToConnect: url, withError: error)
     }
 
     override func didDisconnect(_ session: Session) {
@@ -165,8 +164,8 @@ open class Server: WalletConnect {
         do {
             response = try Response(url: session.url, value: walletInfo, id: requestId)
         } catch {
-            LogService.shared.error("WC: failed to compose SessionRequest response: \(error)")
-            delegate?.server(self, didFailToConnect: session.url)
+            LogService.shared.log("WC: failed to compose SessionRequest response: \(error)")
+            delegate?.server(self, didFailToConnect: session.url, withError: error)
             return
         }
         communicator.send(response, topic: session.dAppInfo.peerId)

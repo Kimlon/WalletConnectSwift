@@ -5,7 +5,7 @@
 import Foundation
 
 public protocol ClientDelegate: AnyObject {
-    func client(_ client: Client, didFailToConnect url: WCURL)
+    func client(_ client: Client, didFailToConnect url: WCURL, withError error: Error?)
     func client(_ client: Client, didConnect url: WCURL)
     func client(_ client: Client, didConnect session: Session)
     func client(_ client: Client, didDisconnect session: Session)
@@ -185,7 +185,7 @@ public class Client: WalletConnect {
     }
 
     override func onConnect(to url: WCURL) {
-        LogService.shared.info("WC: client didConnect url: \(url.bridgeURL.absoluteString)")
+        LogService.shared.log("WC: client didConnect url: \(url.bridgeURL.absoluteString)")
         delegate?.client(self, didConnect: url)
         if let existingSession = communicator.session(by: url) {
             communicator.subscribe(on: existingSession.dAppInfo.peerId, url: existingSession.url)
@@ -193,8 +193,8 @@ public class Client: WalletConnect {
         } else {
             // establishing new connection, handshake in process
             guard let dappInfo = commonDappInfo ?? (delegate as? ClientDelegateV2)?.client(self, dappInfoForUrl: url) else {
-                LogService.shared.error("WC: dAppInfo not found for \(url)")
-                delegate?.client(self, didFailToConnect: url)
+                LogService.shared.log("WC: dAppInfo not found for \(url)")
+                delegate?.client(self, didFailToConnect: url, withError: ResponseError.others)
                 return
             }
 
@@ -213,7 +213,7 @@ public class Client: WalletConnect {
             let walletInfo = try response.result(as: Session.WalletInfo.self)
 
             guard let dappInfo = commonDappInfo ?? (delegate as? ClientDelegateV2)?.client(self, dappInfoForUrl: response.url) else {
-                LogService.shared.error("WC: dAppInfo not found for \(response.url)")
+                LogService.shared.log("WC: dAppInfo not found for \(response.url)")
                 return
             }
 
@@ -221,7 +221,7 @@ public class Client: WalletConnect {
 
             guard walletInfo.approved else {
                 // TODO: handle Error
-                delegate?.client(self, didFailToConnect: response.url)
+                delegate?.client(self, didFailToConnect: response.url, withError: ResponseError.others)
                 return
             }
 
@@ -229,7 +229,7 @@ public class Client: WalletConnect {
             delegate?.client(self, didConnect: session)
         } catch {
             // TODO: handle error
-            delegate?.client(self, didFailToConnect: response.url)
+            delegate?.client(self, didFailToConnect: response.url, withError: error)
         }
     }
 
@@ -289,7 +289,7 @@ public class Client: WalletConnect {
             let info = try request.parameter(of: SessionInfo.self, at: 0)
             return info
         } catch {
-            LogService.shared.error("WC: incoming approval cannot be parsed: \(error)")
+            LogService.shared.log("WC: incoming approval cannot be parsed: \(error)")
             return nil
         }
     }
@@ -300,8 +300,8 @@ public class Client: WalletConnect {
         try send(request, completion: nil)
     }
 
-    override func failedToConnect(_ url: WCURL) {
-        delegate?.client(self, didFailToConnect: url)
+    override func failedToConnect(_ url: WCURL, error: Error?) {
+        delegate?.client(self, didFailToConnect: url, withError: error)
     }
 
     override func didDisconnect(_ session: Session) {

@@ -86,15 +86,15 @@ open class WalletConnect {
     ///   - url: WalletConnect url
     ///   - error: error that triggered the disconnection
     private func onDisconnect(from url: WCURL, error: Error?) {
-        LogService.shared.info("WC: didDisconnect url: \(url.bridgeURL.absoluteString)")
+        LogService.shared.log("WC: didDisconnect url: \(url.bridgeURL.absoluteString)")
         // check if disconnect happened during handshake
         guard let session = communicator.session(by: url) else {
-            failedToConnect(url)
+            failedToConnect(url, error: error)
             return
         }
         // if a session was not initiated by the wallet or the dApp to disconnect, try to reconnect it.
         guard communicator.pendingDisconnectSession(by: url) != nil else {
-            LogService.shared.info("WC: trying to reconnect session by url: \(url.bridgeURL.absoluteString)")
+            LogService.shared.log("WC: trying to reconnect session by url: \(url.bridgeURL.absoluteString)")
             willReconnect(session)
             try! reconnect(to: session)
             return
@@ -117,7 +117,7 @@ open class WalletConnect {
         preconditionFailure("Should be implemented in subclasses")
     }
 
-    func failedToConnect(_ url: WCURL) {
+    func failedToConnect(_ url: WCURL, error: Error?) {
         preconditionFailure("Should be implemented in subclasses")
     }
 
@@ -131,16 +131,11 @@ open class WalletConnect {
 
     func log(_ request: Request) {
         guard let text = try? request.json().string else { return }
-        LogService.shared.detailed("WC: <== [request] \(text)")
+        LogService.shared.log("WC: <== [request] \(text)")
     }
 
     func log(_ response: Response) {
         guard let text = try? response.json().string else { return }
-
-        if text.contains("\"error\"") {
-            LogService.shared.error("WC: <== [response] \(text)")
-        } else {
-            LogService.shared.detailed("WC: <== [response] \(text)")
-        }
+        LogService.shared.log("WC: <== [response] \(text)")
     }
 }
