@@ -105,6 +105,10 @@ class ClientTests: XCTestCase {
 }
 
 class MockClientDelegate: ClientDelegate {
+    func client(_ client: WalletConnectSwift.Client, didFailToConnect url: WalletConnectSwift.WCURL, withError error: Error?) {
+        
+    }
+    
     var didFailToConnect = false
     func client(_ client: Client, didFailToConnect url: WCURL) {
         didFailToConnect = true
